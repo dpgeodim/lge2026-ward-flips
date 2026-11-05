@@ -1,0 +1,46 @@
+name: Poll IEC results
+
+on:
+  schedule:
+    - cron: "7 */5 * * *"   # a fresh ~5h45m polling job every 5 hours (continuous coverage)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch previously published output
+        run: |
+          git clone -q --depth 1 --branch gh-pages "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" out 2>/dev/null || mkdir -p out
+          rm -rf out/.git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Poll every 6 minutes and publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          end=$((SECONDS + 340*60))
+          while [ "$SECONDS" -lt "$end" ]; do
+            python3 poll.py out || echo "poll failed, will retry"
+            cp index.html out/index.html
+            touch out/.nojekyll
+            (
+              cd out && rm -rf .git && git init -q && git checkout -q -b gh-pages &&
+              git add -A &&
+              git -c user.name="results-bot" -c user.email="results-bot@users.noreply.github.com" commit -qm "results $(date -u +%FT%TZ)" &&
+              git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages:gh-pages &&
+              echo "published $(date -u +%T)"
+            ) || echo "publish failed, will retry"
+            sleep 360
+          done
