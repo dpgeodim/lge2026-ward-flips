@@ -231,7 +231,7 @@ def main():
     for yr in ("2021", "2026"):
         try:
             for p in fetch_json(bust(f"{base}/{yr}/PartyList.js")):
-                parties[str(p["ID"])] = {"n": p.get("Name") or p.get("PartyFullName"), "c": p.get("sWebColour") or "#9aa5b1"}
+                parties[str(p["ID"])] = {"n": p.get("Name") or p.get("PartyFullName"), "f": p.get("PartyFullName") or p.get("Name"), "c": p.get("sWebColour") or "#9aa5b1"}
         except Exception as e: print("party list", yr, e)
 
     nat = fetch_json(bust(f"{base}/2026/{E26}LiteMapsNational.js"))
