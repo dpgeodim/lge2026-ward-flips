@@ -31,8 +31,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           end=$((SECONDS + 340*60))
+          FULL="--full"
           while [ "$SECONDS" -lt "$end" ]; do
-            python3 poll.py out || echo "poll failed, will retry"
+            python3 poll.py out $FULL || echo "poll failed, will retry"
+            FULL=""
             cp index.html out/index.html
             touch out/.nojekyll
             (

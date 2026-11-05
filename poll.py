@@ -12,7 +12,7 @@ Reads the IEC live results feed and writes compact JSON for the tracker page:
 Usage: python3 poll.py <out_dir> [--base URL] [--full] [--no-map]
 Only Python 3.8+ standard library is needed.
 """
-import argparse, gzip, json, os, sys, time, urllib.request, urllib.error, zlib
+import argparse, gzip, json, os, sys, threading, time, urllib.request, urllib.error, zlib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
@@ -78,7 +78,12 @@ def build_baseline(base, mid):
 
 
 # ---------------------------------------------------------------- one municipality
-def process(mid, j, b, natm, parties, prev_declared, declared, early, details, now):
+LOCK = threading.Lock()
+
+
+def process(mid, j, b, natm, parties, prev_declared, declared, early, details, now, odd):
+    with LOCK:
+        for k in [k for k, v in declared.items() if v["mid"] == mid]: del declared[k]
     name = j.get("Municipality") or natm.get("name") or str(mid)
     metro = name.startswith(METROS)
     pb = j.get("PartyBallotResults", [])
@@ -122,6 +127,11 @@ def process(mid, j, b, natm, parties, prev_declared, declared, early, details, n
         vdl = w.get("VotingDistrictResults", [])
         cnt = sum(1 for v in vdl if any((p.get("TotalValidVotes") or 0) > 0 for p in v.get("PartyBallotResults", [])))
         winner = next((p for p in w.get("PartyBallotResults", []) if (p.get("WardSeatsWon") or 0) > 0), None)
+        conflict = bool(winner and (not ps or ps[0]["ID"] != winner["ID"]) and cnt < len(vdl))
+        if conflict:
+            with LOCK:
+                odd.append({"w": wid, "no": no, "mid": mid, "flag": winner["ID"], "lead": ps[0]["ID"] if ps else None, "cnt": cnt, "tot": len(vdl)})
+            winner = None
         lead = winner or (ps[0] if ps else None)
         second = next((p for p in ps if lead and p["ID"] != lead["ID"]), None)
         pv = b.get("wards", {}).get(wid)
@@ -143,11 +153,11 @@ def process(mid, j, b, natm, parties, prev_declared, declared, early, details, n
             d = {"w": wid, "no": no, "mid": mid, "k": rec["ch"], "o": rec["prev"], "n": rec["lead"], "c": rec["c"],
                  "pc": rec["pc"], "cpc": rec["cpc"], "opc": rec["ppc"], "mg": rec["mg"], "t": t,
                  "seq": prev_declared.get(wid, {}).get("seq") or 0}
-            declared[wid] = d
+            with LOCK: declared[wid] = d
             if rec["ch"] == "flip": m["flips"] += 1
         elif rec["st"] == "count" and rec["ch"] == "flip":
-            early.append({"w": wid, "no": no, "mid": mid, "prev": rec["prev"], "lead": rec["lead"], "pc": rec["pc"],
-                          "mg": rec["mg"], "cnt": cnt, "tot": len(vdl)})
+            with LOCK: early.append({"w": wid, "no": no, "mid": mid, "prev": rec["prev"], "lead": rec["lead"], "pc": rec["pc"],
+                                     "mg": rec["mg"], "cnt": cnt, "tot": len(vdl)})
             m["early"] += 1
     details[mid] = {"id": mid, "name": m["name"], "prov": m["prov"], "updated": now, "wards": wards}
     return m
@@ -239,7 +249,8 @@ def main():
                 todo.append(mid)
     print(f"{len(natm)} municipalities, {len(todo)} to refresh")
 
-    declared = dict(prev_declared); early = []; details = {}; munis = {}; errors = []
+    declared = dict(prev_declared); early = []; odd = []; details = {}; munis = {}; errors = []
+    keep_odd = [e for e in prev.get("odd", []) if e["mid"] not in todo and e["mid"] in natm]
     # keep early-warning entries for municipalities we are not refreshing
     keep_early = [e for e in prev.get("early", []) if e["mid"] not in todo and e["mid"] in natm]
 
@@ -248,7 +259,7 @@ def main():
             if str(mid) not in baseline:
                 baseline[str(mid)] = build_baseline(base, mid)
             j = fetch_json(bust(f"{base}/2026/{E26}Munic{mid}.js"))
-            munis[mid] = process(mid, j, baseline[str(mid)], natm[mid], parties, prev_declared, declared, early, details, now)
+            munis[mid] = process(mid, j, baseline[str(mid)], natm[mid], parties, prev_declared, declared, early, details, now, odd)
         except Exception as e:
             errors.append(f"{mid}: {e}")
     with ThreadPoolExecutor(max_workers=6) as ex: list(ex.map(work, todo))
@@ -267,11 +278,9 @@ def main():
     for d in sorted(declared.values(), key=lambda d: (d.get("seq") or 0, d["w"])):
         if not d.get("seq"):
             seq += 1; d["seq"] = seq
-    used = {str(d["n"]) for d in declared.values()} | {str(d["o"]) for d in declared.values() if d["o"] is not None}
-    for e in early + keep_early: used |= {str(e["lead"]), str(e["prev"])}
-    for m in munis.values(): used |= {str(p["id"]) for p in m["parties"]} | set(m["seats21"].keys())
     data = {"generated": now, "ok": not errors, "errors": errors[:5], "prog": prog,
-            "parties": {k: v for k, v in parties.items() if k in used and isinstance(v, dict)},
+            "parties": {k: (v if isinstance(v, dict) else {"n": v, "c": "#9aa5b1"}) for k, v in parties.items() if v},
+            "odd": odd + keep_odd,
             "munis": sorted(munis.values(), key=lambda m: m["name"]),
             "declared": sorted(declared.values(), key=lambda d: -d["seq"]),
             "early": sorted(early + keep_early, key=lambda e: -(e["cnt"] / (e["tot"] or 1)))}

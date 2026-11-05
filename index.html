@@ -19,7 +19,7 @@ button{font:inherit;cursor:pointer}
 .st{font-size:11px;color:var(--mute);padding:6px 14px 0;flex:none}
 .bd{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
 .wn{flex:none;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-.wn button{flex:1;border:0;background:none;padding:8px 2px 7px;font-size:11px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px}
+.wn button{flex:1;border:0;background:none;padding:8px 1px 7px;font-size:10.5px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px}
 .wn button b{font-size:18px;line-height:1;font-weight:400}.wn button.on{color:var(--navy);font-weight:700;box-shadow:inset 0 3px 0 var(--or)}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 12px 0}
 .tile{background:#fff;border-radius:10px;padding:8px;border:1px solid var(--line);text-align:center}
@@ -148,7 +148,7 @@ function header() {
 }
 function nav() {
   const early = D ? D.early.length : 0;
-  const tabs = [["flips", "⇄", "Flips"], ["live", "◔", "Leading" + (early ? ` (${early})` : "")], ["councils", "▦", "Councils"], ["watch", "★", "Watchlist"], ["more", "☰", "More"]];
+  const tabs = [["flips", "⇄", "Flips"], ["hl", "⚡", "Highlights"], ["live", "◔", "Leading" + (early ? ` (${early})` : "")], ["councils", "▦", "Councils"], ["watch", "★", "Watchlist"], ["more", "☰", "More"]];
   $("#nav").innerHTML = tabs.map(t => `<button data-tab="${t[0]}" class="${tab === t[0] && detail == null ? "on" : ""}"><b>${t[1]}</b>${t[2]}</button>`).join("");
 }
 function filterBar(withParty) {
@@ -271,7 +271,7 @@ function draw(bg) {
   if (!D) return;
   if (bg && tab === "more" && detail == null) { if (GEO) renderMap(); return; }
   const bd = $("#bd"), y = bd.scrollTop, a = document.activeElement, af = a && (a.getAttribute("data-f") || a.id), sel = a && a.selectionStart;
-  bd.innerHTML = detail != null ? viewMuni(detail) : { flips: viewFlips, live: viewLive, councils: viewCouncils, watch: viewWatch, more: viewMore }[tab]();
+  bd.innerHTML = detail != null ? viewMuni(detail) : { flips: viewFlips, hl: viewHighlights, live: viewLive, councils: viewCouncils, watch: viewWatch, more: viewMore }[tab]();
   bd.scrollTop = y;
   if (af === "q" || af === "srch") { const n = af === "srch" ? $("#srch") : $('[data-f="q"]'); if (n) { n.focus(); try { n.setSelectionRange(sel, sel); } catch (e) {} } }
   if (tab === "more" && detail == null && GEO) renderMap();
@@ -295,6 +295,53 @@ function renderMap() {
   $("#legend").innerHTML = `<span><i style="background:#e7eef6"></i>0</span><span><i style="background:${col(Math.ceil(max / 2))}"></i>${Math.ceil(max / 2)}</span><span><i style="background:${col(max)}"></i>${max} flips</span>` + (sm ? ` · <b>${esc(sm.name)}</b>: ${sm.flips} flips — <a href="#" data-muni="${sm.id}">open</a>` : " · tap a council");
 }
 
+
+// ---------- highlights ----------
+const BIG = new Set(["ANC", "DA", "EFF", "IFP", "MKP", "PA", "ACTIONSA", "VF PLUS"]);
+let hlOpen = {};
+function hlSection(key, title, items, render, note) {
+  if (!items.length) return "";
+  const open = hlOpen[key], shown = open ? items : items.slice(0, 6);
+  return `<div class="wc"><h3>${title}<span class="sm" style="text-transform:none">${items.length}</span></h3>${shown.map(render).join("")}
+${items.length > 6 ? `<button class="back" data-hl="${key}" style="padding:10px 12px">${open ? "Show fewer" : `Show all ${items.length}`}</button>` : ""}${note ? `<div class="note" style="padding-top:4px">${note}</div>` : ""}</div>`;
+}
+function viewHighlights() {
+  const dec = D.declared, flips = dec.filter(d => d.k === "flip"), holds = dec.filter(d => d.k === "hold");
+  const row = (d, line) => `<div class="wr${fresh.has(d.w) ? " fresh" : ""}" data-ward="${d.w}" data-mid="${d.mid}"><div class="wm"><b>${esc(mname(d.mid))} · Ward ${d.no}</b><div style="margin:3px 0">${line}</div><div class="sm">${esc(mprov(d.mid))}${d.c ? " · " + esc(d.c) : ""}</div>${openWard === d.w ? wardDetail(d.w, d.mid) : ""}</div><div class="pct">${d.pc != null ? pct(d.pc) : ""}</div></div>`;
+  const odd = (D.odd || []).map(o => `<div class="wr" data-ward="${o.w}" data-mid="${o.mid}"><div class="wm"><b>${esc(mname(o.mid))} · Ward ${o.no}</b><div style="margin:3px 0">IEC flags ${chip(o.flag)} as winner, but ${o.lead != null ? chip(o.lead) + " leads" : "no votes are recorded yet"} with ${o.cnt} of ${o.tot} stations in</div><div class="sm">Treated as not final until all stations are counted</div></div></div>`);
+  const strong = flips.filter(d => (d.opc || 0) >= 60).sort((a, c) => c.opc - a.opc);
+  const collapse = holds.filter(d => d.opc != null && d.cpc != null && d.opc - d.cpc >= 20).sort((a, c) => (c.opc - c.cpc) - (a.opc - a.cpc));
+  const knife = dec.filter(d => d.mg != null && d.mg >= 0 && d.mg < 1).sort((a, c) => a.mg - c.mg);
+  const outsiders = dec.filter(d => d.k !== "unk" && (d.n === 0 || !BIG.has(pn(d.n))));
+  const split = dec.filter(d => d.pc != null && d.pc < 35).sort((a, c) => a.pc - c.pc);
+  const pairs = {}; flips.forEach(d => { const k = `${d.o}>${d.n}`; pairs[k] = (pairs[k] || 0) + 1; });
+  const pairList = Object.entries(pairs).sort((a, c) => c[1] - a[1]).slice(0, 8);
+  const epairs = {}; D.early.forEach(e => { const k = `${e.prev}>${e.lead}`; epairs[k] = (epairs[k] || 0) + 1; });
+  const epairList = Object.entries(epairs).sort((a, c) => c[1] - a[1]).slice(0, 8);
+  const sure = D.early.filter(e => e.tot && e.cnt / e.tot >= .75 && (e.mg || 0) >= 10).sort((a, c) => c.mg - a.mg);
+  const cz = D.munis.filter(m => m.status === "maj" || m.status === "hung").map(m => { const s21 = Object.entries(m.seats21 || {}).sort((a, c) => c[1] - a[1]); const tot21 = s21.reduce((a, [, v]) => a + v, 0);
+    const top21 = s21[0] ? { id: +s21[0][0], s: s21[0][1], maj: s21[0][1] > tot21 / 2 } : null; const top = m.parties[0]; let what = null;
+    if (top21 && top && m.status === "maj" && top21.id !== top.id) what = `Control changes: ${chip(top21.id)} → ${chip(top.id)} majority (${top.s}/${m.avail})`;
+    else if (top21 && top21.maj && m.status === "hung") what = `Was a ${chip(top21.id)} majority (${top21.s}/${tot21}) · now hung, ${chip(top.id)} largest with ${top.s}/${m.avail}`;
+    else if (top21 && !top21.maj && m.status === "maj") what = `Was hung · now ${chip(top.id)} majority (${top.s}/${m.avail})`;
+    return what ? { m, what } : null; }).filter(Boolean);
+  const turn = D.munis.filter(m => m.turn && m.turn21 && Math.abs(m.turn - m.turn21) >= 4).sort((a, c) => Math.abs(c.turn - c.turn21) - Math.abs(a.turn - a.turn21));
+  const pairRow = ([k, n]) => { const [o, l] = k.split(">"); return `<div class="g">${chip(o)}<span class="ar">→</span>${chip(l)}<span><b>${n}</b> wards</span></div>`; };
+  return `<div class="note" style="padding-bottom:0">What stands out so far. Tap a ward for its vote-share swing. New since you last looked is highlighted.</div>
+${hlSection("odd", "⚠ Feed quirks: winner flagged but not leading", odd, x => x)}
+${hlSection("cz", "Council control changes", cz, x => `<div class="wr" data-muni="${x.m.id}"><div class="wm"><b>${esc(x.m.name)}</b> ${statusTag(x.m)}<div style="margin-top:3px">${x.what}</div></div></div>`)}
+${hlSection("strong", "Strongholds lost (2021 winner had 60%+)", strong, d => row(d, `${chip(d.o)} ${pct(d.opc)} in 2021 <span class="ar">→</span> ${chip(d.n)} ${pct(d.cpc)}`))}
+${hlSection("collapse", "Held, but support collapsed (−20 pts or more)", collapse, d => row(d, `${chip(d.n)} ${pct(d.opc)} <span class="ar">→</span> ${pct(d.cpc)} <b class="dn">${sgn(d.cpc - d.opc)}</b>`))}
+${hlSection("knife", "Knife-edge results (under 1 point)", knife, d => row(d, `${d.k === "flip" ? chip(d.o) + '<span class="ar">→</span>' : ""}${chip(d.n)} <span class="wt t-close">${d.mg.toFixed(1)} pts</span>`))}
+${hlSection("out", "Outsiders winning wards", outsiders, d => row(d, `${d.o != null ? chip(d.o) + '<span class="ar">→</span>' : ""}${chip(d.n)}`), "Winners outside the eight largest parties, including independents.")}
+${hlSection("split", "Won with under 35% of the vote", split, d => row(d, `${chip(d.n)} · margin ${d.mg != null ? d.mg.toFixed(1) : "–"} pts`), "Three- or four-way splits: the ward could swing easily next time.")}
+${pairList.length ? `<div class="wc"><h3>Where the flips are going (declared)</h3>${pairList.map(pairRow).join("")}</div>` : ""}
+${epairList.length ? `<div class="wc"><h3>Where the leads are going (still counting)</h3>${epairList.map(pairRow).join("")}<div class="note" style="padding-top:4px">Provisional, from wards leaning to a different party than in 2021.</div></div>` : ""}
+${hlSection("sure", "Near-certain flips (75%+ counted, 10+ pt lead)", sure, e => `<div class="wr" data-ward="${e.w}" data-mid="${e.mid}"><div class="wm"><b>${esc(mname(e.mid))} · Ward ${e.no}</b><div style="margin:3px 0">${chip(e.prev)}<span class="ar">→</span>${chip(e.lead)} <span class="sm">${e.cnt}/${e.tot} stations · ahead by ${e.mg.toFixed(1)}</span></div>${openWard === e.w ? wardDetail(e.w, e.mid) : ""}</div><div class="pct">${pct(e.pc)}</div></div>`)}
+${hlSection("turn", "Turnout shifts (4+ pts vs 2021)", turn, m => `<div class="wr" data-muni="${m.id}"><div class="wm"><b>${esc(m.name)}</b><div style="margin-top:3px">≈${pct(m.turn)} now vs ≈${pct(m.turn21)} in 2021 <b class="${m.turn > m.turn21 ? "up" : "dn"}">${sgn(m.turn - m.turn21)}</b></div></div></div>`, "Approximate; only for councils where every station is in.")}
+${!odd.length && !strong.length && !collapse.length && !knife.length && !cz.length ? `<div class="empty">Nothing unusual yet.</div>` : ""}`;
+}
+
 // ---------- CSV ----------
 function csv() {
   const head = ["declared_at", "province", "municipality", "ward", "ward_id", "result", "party_2021", "winner_share_2021", "party_2026", "winner", "ward_ballot_share_2026", "margin_pts", "winner_swing_vs_2021"];
@@ -307,10 +354,11 @@ function csv() {
 document.addEventListener("click", e => {
   if (actx && actx.state === "suspended") actx.resume();
   const mp = e.target.closest("[data-mapid]"); if (mp) { mapSel = +mp.dataset.mapid; renderMap(); return; }
-  const t = e.target.closest("[data-star],[data-tab],[data-act],[data-fv],[data-cf],[data-alert],[data-muni],[data-ward]"); if (!t) return;
+  const t = e.target.closest("[data-star],[data-tab],[data-act],[data-fv],[data-cf],[data-alert],[data-muni],[data-ward],[data-hl]"); if (!t) return;
   const d = t.dataset;
   if (d.star) { e.stopPropagation(); const [k, id] = d.star.split(":"); if (WATCH[k][id]) delete WATCH[k][id]; else WATCH[k][id] = 1; LS.set("watch", WATCH);
     document.querySelectorAll(`[data-star="${d.star}"]`).forEach(b => { const on = !!WATCH[k][id]; b.className = "star" + (on ? " on" : ""); b.textContent = on ? "★" : "☆"; }); return; }
+  if (d.hl) { hlOpen[d.hl] = !hlOpen[d.hl]; draw(); return; }
   if (d.tab) { tab = d.tab; detail = null; openWard = null; draw(); $("#bd").scrollTop = 0; return; }
   if (d.fv) { flipView = d.fv; draw(); return; }
   if (d.cf != null) { councilFilter = d.cf; draw(); return; }
@@ -329,7 +377,7 @@ document.addEventListener("input", e => { const t = e.target;
   if (t.dataset.f) { F[t.dataset.f] = t.value; draw(); }
   else if (t.id === "srch") { searchQ = t.value; const l = $("#slist"); if (l) l.innerHTML = searchList(); }
   else if (t.dataset.s) { const k = t.dataset.s; S[k] = t.type === "checkbox" ? t.checked : Math.max(1, Math.min(20, +t.value || 5)); LS.set("settings", S); if (t.type === "checkbox") draw(); } });
-if (location.hash === "#councils" || location.hash === "#live" || location.hash === "#watch") tab = location.hash.slice(1);
+if (["#councils", "#live", "#watch", "#hl"].includes(location.hash)) tab = location.hash.slice(1);
 draw(); wake(); load(); setInterval(load, 60000);
 })();
 </script>
