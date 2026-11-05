@@ -75,7 +75,7 @@ let WATCH = LS.get("watch", { w: {}, m: {} });
 let seen = LS.get("seen", null);          // ward ids already shown to this viewer
 let seenStatus = LS.get("seenStatus", {}); // council status already shown
 let D = null, M = {}, DET = {}, GEO = null;
-let tab = "flips", flipView = "flip", detail = null, openWard = null, councilFilter = "", searchQ = "", mapSel = null;
+let tab = "flips", flipView = "flip", detail = null, openWard = null, councilFilter = "", searchQ = "", mapSel = null, provView = null;
 const F = { party: "", prov: "", q: "" };
 let fresh = new Set(), toastTimer = null, lastLoad = "", err = "";
 
@@ -219,16 +219,42 @@ function councilCard(m) {
 <div style="margin-top:3px">${line}</div>${m.parties.some(p => p.s) ? seatBar(m) : ""}
 <div class="sm">${s21 ? "2021: " + s21 : ""}${m.turn ? ` · turnout ≈${pct(m.turn)}${m.turn21 ? " (2021 ≈" + pct(m.turn21) + ")" : ""}` : ""}</div></div>${starBtn("m", m.id)}</div>`;
 }
+function provRow(m) {
+  const lead = m.lead, done = m.ve ? m.vd >= m.ve : false;
+  const line = m.status === "maj" || m.status === "hung" ? `${m.sd} of ${m.se} seats allocated` : `${fmt(m.vd)} of ${fmt(m.ve)} voting districts in`;
+  return `<div class="wr" data-muni="${m.id}" style="align-items:center"><div class="wm"><b>${esc(m.name)}</b>${m.metro ? ' <span class="sm">metro</span>' : ""}<div class="sm" style="color:#9a6b12;font-weight:600">${line}${m.flips ? ` · <span style="color:var(--flip)">${m.flips} flip${m.flips > 1 ? "s" : ""}</span>` : ""}</div></div>
+<div style="display:flex;align-items:center;gap:8px">${lead ? `${chip(lead.id)}<b>${pct(lead.pc)}</b>` : `<span class="sm">no results yet</span>`}${m.status === "hung" ? '<span class="wt t-hung">hung</span>' : m.status === "maj" ? '<span class="wt t-maj">majority</span>' : ""}<span class="sm" style="font-size:18px">›</span></div></div>`;
+}
+function provSummary(prov) {
+  const ms = D.munis.filter(m => m.prov === prov);
+  const votes = {}; ms.forEach(m => m.parties.forEach(p => votes[p.id] = (votes[p.id] || 0) + (p.v || 0)));
+  const tot = Object.values(votes).reduce((a, b) => a + b, 0);
+  const top = Object.entries(votes).sort((a, c) => c[1] - a[1])[0];
+  const wd = ms.reduce((a, m) => a + m.wd, 0), we = ms.reduce((a, m) => a + m.we, 0), vd = ms.reduce((a, m) => a + m.vd, 0), ve = ms.reduce((a, m) => a + m.ve, 0);
+  const flips = ms.reduce((a, m) => a + m.flips, 0), fin = ms.filter(m => m.status === "maj" || m.status === "hung").length, hung = ms.filter(m => m.status === "hung").length;
+  return { ms, top: top ? { id: +top[0], pc: tot ? 100 * top[1] / tot : 0 } : null, wd, we, vd, ve, flips, fin, hung };
+}
 function viewCouncils() {
-  const ms = D.munis, metros = ms.filter(m => m.metro);
-  const others = ms.filter(m => !m.metro && (!councilFilter || m.status === councilFilter) && (!F.prov || m.prov === F.prov) && (!F.q || m.name.toLowerCase().includes(F.q.toLowerCase())));
+  const ms = D.munis;
+  if (provView) {
+    const s = provSummary(provView);
+    const list = s.ms.filter(m => (!councilFilter || m.status === councilFilter) && (!F.q || m.name.toLowerCase().includes(F.q.toLowerCase()))).sort((a, c) => (c.metro - a.metro) || a.name.localeCompare(c.name));
+    return `<button class="back" data-act="provback">‹ All provinces</button>
+<div class="tiles"><div class="tile"><b>${s.wd}</b><span>of ${s.we} wards</span></div><div class="tile hot"><b>${s.flips}</b><span>flips</span></div><div class="tile"><b>${s.fin}</b><span>councils done</span></div><div class="tile"><b>${s.hung}</b><span>hung</span></div></div>
+<div class="seg">${[["", "All"], ["maj", "Majority"], ["hung", "Hung"], ["count", "Counting"]].map(x => `<button data-cf="${x[0]}" class="${councilFilter === x[0] ? "on" : ""}">${x[1]}</button>`).join("")}</div>
+<div class="filters"><input type="search" data-f="q" placeholder="Search in ${esc(provView)}…" value="${esc(F.q)}"></div>
+<div class="wc"><h3>${esc(provView)} · Municipalities<span class="sm" style="text-transform:none">${list.length}${s.top ? ` · ${esc(pn(s.top.id))} ${pct(s.top.pc)} of votes so far` : ""}</span></h3>${list.length ? list.map(provRow).join("") : `<div class="empty">None match</div>`}</div>
+<div class="note">"Voting districts in" counts the voting stations whose results have been captured. Tap a municipality for its party table and every ward.</div>`;
+  }
+  const metros = ms.filter(m => m.metro);
+  const provs = [...new Set(ms.map(m => m.prov).filter(Boolean))].sort();
   const cnt = k => ms.filter(m => m.status === k).length;
   return `<div class="tiles"><div class="tile"><b>${cnt("maj")}</b><span>Majority</span></div><div class="tile hot"><b>${cnt("hung")}</b><span>Hung</span></div><div class="tile"><b>${cnt("count")}</b><span>Counting</span></div><div class="tile"><b>${ms.length}</b><span>Councils</span></div></div>
-<div class="wc"><h3>Metros</h3>${metros.map(councilCard).join("") || `<div class="empty">Loading…</div>`}</div>
-<div class="seg">${[["", "All"], ["maj", "Majority"], ["hung", "Hung"], ["count", "Counting"]].map(s => `<button data-cf="${s[0]}" class="${councilFilter === s[0] ? "on" : ""}">${s[1]}</button>`).join("")}</div>
-${filterBar(false)}
-<div class="wc"><h3>Local councils (${others.length})</h3>${others.length ? others.map(councilCard).join("") : `<div class="empty">None match</div>`}</div>
-<div class="note">Dashed line = half the seats. Seats fill in as the IEC allocates them. Turnout is approximate (ballots cast ÷ registered voters ÷ ballots per voter).</div>`;
+<div class="wc"><h3>Metros</h3>${metros.map(provRow).join("") || `<div class="empty">Loading…</div>`}</div>
+<div class="wc"><h3>Provinces<span class="sm" style="text-transform:none">tap to browse municipalities</span></h3>${provs.map(p => { const s = provSummary(p);
+  return `<div class="wr" data-prov="${esc(p)}" style="align-items:center"><div class="wm"><b>${esc(p)}</b><div class="sm" style="color:#9a6b12;font-weight:600">${s.wd} of ${s.we} wards declared${s.flips ? ` · <span style="color:var(--flip)">${s.flips} flip${s.flips > 1 ? "s" : ""}</span>` : ""}${s.fin ? ` · ${s.fin} council${s.fin > 1 ? "s" : ""} done` : ""}</div></div>
+<div style="display:flex;align-items:center;gap:8px">${s.top ? `${chip(s.top.id)}<b>${pct(s.top.pc)}</b>` : ""}<span class="sm" style="font-size:18px">›</span></div></div>`; }).join("")}</div>
+<div class="note">Province percentages are each party's share of all votes captured so far in that province (ward and PR ballots together). Dashed line in council views = half the seats.</div>`;
 }
 function wardRowFromDetail(w, mid) {
   const tag = w.st === "dec" ? `<span class="wt t-${w.ch}">${{ flip: "flip", hold: "hold", new: "new ward", unk: "no 2021 data" }[w.ch]}</span>` : w.st === "count" ? `<span class="wt t-count">counting ${w.cnt}/${w.tot}</span>${w.ch === "flip" ? ' <span class="wt t-lead">leading</span>' : ""}` : `<span class="wt t-wait">not started</span>`;
@@ -268,7 +294,7 @@ function viewMuni(mid) {
   const ids = [...new Set([...m.parties.map(p => p.id), ...Object.keys(m.seats21 || {}).map(Number)])];
   const rows = ids.map(id => { const p = m.parties.find(p => p.id === id) || {}; return { id, s: p.s || 0, pc: p.pc, s21: (m.seats21 || {})[id] || 0 }; }).sort((a, c) => c.s - a.s || (c.pc || 0) - (a.pc || 0) || c.s21 - a.s21);
   return `<button class="back" data-act="back">‹ Back</button>
-<div class="wc"><h3>${esc(m.name)} ${starBtn("m", mid)}</h3><div class="wr"><div class="wm">${statusTag(m)} <span class="sm">${m.wd}/${m.we} wards · ${m.sd}/${m.se} seats · ${pct(m.ve ? 100 * m.vd / m.ve : 0)} stations</span>${seatBar(m)}
+<div class="wc"><h3>${esc(m.name)} ${starBtn("m", mid)}</h3><div class="wr"><div class="wm">${statusTag(m)} <span class="sm">${esc(m.prov)}</span><div class="sm" style="color:#9a6b12;font-weight:600;margin-top:3px">${fmt(m.vd)} of ${fmt(m.ve)} voting districts in · ${m.wd} of ${m.we} wards declared · ${m.sd} of ${m.se} seats allocated</div>${seatBar(m)}
 ${m.turn ? `<div class="sm">Turnout ≈${pct(m.turn)}${m.turn21 ? ` vs ≈${pct(m.turn21)} in 2021` : ""}</div>` : ""}</div></div>
 <div class="det" style="margin:0 12px 12px"><table><tr class="sm"><td>Party</td><td>Votes</td><td>Seats</td><td>2021</td></tr>${rows.map(r => `<tr><td>${chip(r.id)}</td><td>${pct(r.pc)}</td><td><b>${r.s}</b></td><td>${r.s21}</td></tr>`).join("")}</table><div class="sm" style="margin-top:4px">${m.need} seats needed for a majority</div></div></div>
 <div class="wc"><h3>Wards</h3>${dd ? dd.wards.map(w => wardRowFromDetail(w, mid)).join("") : `<div class="empty">Loading wards…</div>`}</div>`;
@@ -399,7 +425,7 @@ function csv() {
 document.addEventListener("click", e => {
   if (actx && actx.state === "suspended") actx.resume();
   const mp = e.target.closest("[data-mapid]"); if (mp) { mapSel = +mp.dataset.mapid; renderMap(); return; }
-  const t = e.target.closest("[data-star],[data-tab],[data-act],[data-fv],[data-cf],[data-alert],[data-muni],[data-ward],[data-hl]"); if (!t) return;
+  const t = e.target.closest("[data-star],[data-tab],[data-act],[data-fv],[data-cf],[data-alert],[data-muni],[data-ward],[data-hl],[data-prov]"); if (!t) return;
   const d = t.dataset;
   if (d.star) { e.stopPropagation(); const [k, id] = d.star.split(":"); if (WATCH[k][id]) delete WATCH[k][id]; else WATCH[k][id] = 1; LS.set("watch", WATCH);
     document.querySelectorAll(`[data-star="${d.star}"]`).forEach(b => { const on = !!WATCH[k][id]; b.className = "star" + (on ? " on" : ""); b.textContent = on ? "★" : "☆"; }); return; }
@@ -407,6 +433,8 @@ document.addEventListener("click", e => {
   if (d.tab) { tab = d.tab; detail = null; openWard = null; draw(); $("#bd").scrollTop = 0; return; }
   if (d.fv) { flipView = d.fv; draw(); return; }
   if (d.cf != null) { councilFilter = d.cf; draw(); return; }
+  if (d.prov != null) { provView = d.prov; councilFilter = ""; F.q = ""; draw(); $("#bd").scrollTop = 0; return; }
+  if (d.act === "provback") { provView = null; councilFilter = ""; F.q = ""; draw(); return; }
   if (d.alert) { S.alert = d.alert; LS.set("settings", S); draw(); return; }
   if (d.muni) { e.preventDefault(); detail = +d.muni; openWard = null; draw(); $("#bd").scrollTop = 0; ensureDetail(+d.muni); return; }
   if (d.ward) { if (d.go) { detail = +d.mid; openWard = d.ward; draw(); ensureDetail(+d.mid); const el = document.querySelector(`[data-ward="${d.ward}"]`); if (el && el.scrollIntoView) el.scrollIntoView({ block: "center" }); return; } openWard = openWard === d.ward ? null : d.ward; draw(); return; }
