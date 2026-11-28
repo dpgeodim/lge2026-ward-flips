@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b3c6e">
+<title>LGE 2026 Ward Flip Tracker (unofficial)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b3c6e'/%3E%3Cpath d='M14 40l12-16 10 12 14-20' fill='none' stroke='%23f7941d' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{--navy:#0b3c6e;--or:#f7941d;--bg:#eef2f6;--ink:#14213d;--mute:#6b7a90;--line:#d6dde6;--flip:#d9480f}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,Roboto,"Segoe UI",sans-serif;display:flex;flex-direction:column;height:100vh;height:100dvh}
+button{font:inherit;cursor:pointer}
+.hd{background:var(--navy);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;flex:none}
+.hd .r1{display:flex;align-items:center;gap:8px}
+.hd h1{font-size:17px;margin:0;flex:1;font-weight:700}
+.hd h1 small{display:block;font-size:11px;font-weight:500;color:#9fc3e8;letter-spacing:.3px}
+.ib{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:8px;padding:6px 9px;font-size:15px}
+.pg{margin-top:8px;font-size:11.5px;color:#cfe0f3;display:flex;justify-content:space-between;gap:8px}
+.bar{height:5px;background:rgba(255,255,255,.18);border-radius:3px;margin-top:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--or)}
+.st{font-size:11px;color:var(--mute);padding:6px 14px 0;flex:none}
+.bd{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
+.wn{flex:none;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.wn button{flex:1;border:0;background:none;padding:8px 1px 7px;font-size:10.5px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px}
+.wn button b{font-size:18px;line-height:1;font-weight:400}.wn button.on{color:var(--navy);font-weight:700;box-shadow:inset 0 3px 0 var(--or)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 12px 0}
+.tile{background:#fff;border-radius:10px;padding:8px;border:1px solid var(--line);text-align:center}
+.tile b{display:block;font-size:21px;color:var(--navy)}.tile span{font-size:10px;color:var(--mute);text-transform:uppercase;letter-spacing:.3px}.tile.hot b{color:var(--flip)}
+.wc{background:#fff;border:1px solid var(--line);border-radius:12px;margin:10px 12px 0;overflow:hidden}
+.wc h3{margin:0;padding:9px 12px;font-size:12px;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;background:#f5f8fb;border-bottom:1px solid #e3e8ef;display:flex;justify-content:space-between;align-items:center;line-height:1.3}
+.wr{padding:10px 12px;border-top:1px solid #edf1f5;display:flex;gap:10px;align-items:flex-start}.wr:first-of-type{border-top:0}
+.wr .wm{flex:1;min-width:0}.wr .wm>b{font-size:14.5px}
+.sm{font-size:12px;color:var(--mute)}
+.ch{display:inline-flex;align-items:center;gap:4px;font-weight:700;font-size:13px;white-space:nowrap}
+.ch i{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.15)}
+.ar{color:#9aa5b1;margin:0 3px}
+.wt{font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;color:#fff;text-transform:uppercase;letter-spacing:.3px;vertical-align:1px}
+.t-flip{background:var(--flip)}.t-hold{background:#6b7a90}.t-new{background:#1c7ed6}.t-unk{background:#adb5bd}.t-close{background:#f59f00}.t-lead{background:#7048e8}
+.t-maj{background:#2b8a3e}.t-hung{background:#c92a2a}.t-count{background:#1c7ed6}.t-wait{background:#adb5bd}
+.star{border:0;background:none;font-size:20px;color:#c3ccd7;padding:0 2px;line-height:1}.star.on{color:var(--or)}
+.pct{text-align:right;font-weight:700;color:var(--navy);white-space:nowrap}
+.fresh{background:#fff4e0}
+.filters{display:flex;gap:6px;padding:10px 12px 0;flex-wrap:wrap}
+select,input[type=search],input[type=number]{font:inherit;font-size:14px;padding:7px 9px;border:1px solid #c7d0db;border-radius:8px;background:#fff;color:var(--ink);flex:1;min-width:0}
+.seg{display:flex;gap:6px;padding:10px 12px 0;overflow-x:auto}
+.seg button{border:1px solid #c7d0db;background:#fff;color:var(--navy);border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap}
+.seg button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.det{margin-top:8px;background:#f5f8fb;border-radius:8px;padding:6px 8px}
+.det table{width:100%;border-collapse:collapse;font-size:12.5px}.det td{padding:3px 2px}.det td:not(:first-child){text-align:right}
+.up{color:#2b8a3e;font-weight:700}.dn{color:#c92a2a;font-weight:700}
+.seatbar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:#e9edf2;margin:6px 0 2px;position:relative}
+.seatbar i{display:block;height:100%}.seatbar em{position:absolute;left:50%;top:-3px;bottom:-3px;border-left:2px dashed var(--ink)}
+.g{display:flex;justify-content:space-between;padding:7px 12px;border-top:1px solid #edf1f5;font-size:14px}
+.empty{padding:22px 14px;text-align:center;color:var(--mute)}
+.wb{display:block;width:calc(100% - 24px);margin:10px 12px 0;border:0;border-radius:10px;padding:12px;background:var(--navy);color:#fff;font-weight:700}.wb.o{background:var(--or)}
+.set{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-top:1px solid #edf1f5;gap:10px}
+.back{border:0;background:none;color:var(--navy);font-weight:700;padding:10px 12px 0;font-size:14px}
+#toast{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));background:var(--flip);color:#fff;border-radius:12px;padding:12px 14px;font-weight:600;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);transform:translateY(-160%);transition:transform .3s;z-index:5}
+#toast.on{transform:none}
+#map{padding:6px}#map svg{width:100%;height:auto;display:block;touch-action:manipulation}
+#map path{stroke:#fff;stroke-width:.015;cursor:pointer}#map path.sel{stroke:var(--ink);stroke-width:.04}
+.legend{display:flex;gap:10px;font-size:11px;color:var(--mute);padding:4px 12px 10px;flex-wrap:wrap}.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:3px}
+.note{font-size:11.5px;color:var(--mute);padding:12px 14px}
+</style></head>
+<body>
+<div id="toast"></div>
+<div class="hd" id="hd"></div>
+<div class="st" id="st">Loading…</div>
+<div class="bd" id="bd"><div class="empty">Loading results…</div></div>
+<div class="wn" id="nav"></div>
+<script>
+(() => {
+const LS = { get(k, d) { try { const v = localStorage.getItem("wft_" + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+             set(k, v) { try { localStorage.setItem("wft_" + k, JSON.stringify(v)); } catch (e) {} } };
+const S = Object.assign({ sound: true, alert: "all", close: 5 }, LS.get("settings", {}));
+let WATCH = LS.get("watch", { w: {}, m: {} });
+let seen = LS.get("seen", null);          // ward ids already shown to this viewer
+let seenStatus = LS.get("seenStatus", {}); // council status already shown
+let D = null, M = {}, DET = {}, GEO = null;
+let tab = "flips", flipView = "flip", detail = null, openWard = null, councilFilter = "", searchQ = "", mapSel = null, provView = null;
+const F = { party: "", prov: "", q: "" };
+let fresh = new Set(), toastTimer = null, lastLoad = "", err = "";
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const P = id => (D && D.parties[String(id)]) || null;
+const pn = id => id == null ? "–" : ((P(id) || {}).n || ("Party " + id));
+const pcol = id => (P(id) || {}).c || "#9aa5b1";
+const chip = id => `<span class="ch"><i style="background:${pcol(id)}"></i>${esc(pn(id))}</span>`;
+const fmt = n => (n == null || isNaN(n)) ? "–" : Number(n).toLocaleString("en-ZA");
+const pct = n => (n == null || isNaN(n)) ? "–" : Number(n).toFixed(1) + "%";
+const sgn = n => (n > 0 ? "+" : "") + Number(n).toFixed(1);
+const now = () => new Date().toTimeString().slice(0, 5);
+
+// ---------- alerts ----------
+let actx = null;
+function beep(n) { if (!S.sound) return; try { actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+  for (let i = 0; i < (n || 1); i++) { const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * .35;
+    o.connect(g); g.connect(actx.destination); o.frequency.value = 880 + i * 220; g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .3); o.start(t); o.stop(t + .3); } } catch (e) {} }
+function toast(html) { const t = $("#toast"); t.innerHTML = html; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 9000); }
+function fire(evts) { if (!evts.length) return; beep(Math.min(3, evts.length)); try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {}
+  toast(evts.slice(0, 3).map(esc).join("<br>") + (evts.length > 3 ? `<br>+${evts.length - 3} more` : "")); document.title = `(${evts.length}) ${evts[0]}`;
+  if ("Notification" in window && Notification.permission === "granted") { try { new Notification("Ward Flip Tracker", { body: evts.slice(0, 4).join("\n"), tag: "wft" }); } catch (e) {} } }
+let lock = null; const wake = () => { try { navigator.wakeLock && navigator.wakeLock.request("screen").then(l => lock = l).catch(() => {}); } catch (e) {} };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { wake(); load(); } });
+
+// ---------- data ----------
+async function load() {
+  try {
+    const r = await fetch(`data.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    const events = [];
+    const watched = x => WATCH.w[x.w] || WATCH.m[x.mid];
+    if (seen) {
+      fresh = new Set();
+      for (const x of d.declared) if (!seen[x.w]) { fresh.add(x.w);
+        if (x.k === "flip" && (S.alert === "all" || watched(x))) events.push(`FLIP ${nameOf(d, x.mid)} W${x.no}: ${nm(d, x.o)} → ${nm(d, x.n)} (${pct(x.pc)})`);
+        else if (watched(x)) events.push(`Declared ${nameOf(d, x.mid)} W${x.no}: ${nm(d, x.n)} (${x.k})`); }
+      for (const m of d.munis) { const was = seenStatus[m.id];
+        if ((m.status === "maj" || m.status === "hung") && was && was !== m.status && (m.metro || WATCH.m[m.id]))
+          events.push(m.status === "maj" ? `${m.name}: ${nm(d, m.top)} wins outright` : `${m.name}: HUNG council – ${nm(d, m.top)} largest`); }
+    }
+    seen = {}; d.declared.forEach(x => seen[x.w] = 1); LS.set("seen", seen);
+    seenStatus = {}; d.munis.forEach(m => seenStatus[m.id] = m.status); LS.set("seenStatus", seenStatus);
+    D = d; M = {}; d.munis.forEach(m => M[m.id] = m);
+    err = d.ok ? "" : "some councils failed to update – will retry";
+    lastLoad = now(); fire(events);
+  } catch (e) { err = "couldn't load results (" + e.message + ")"; }
+  draw(true);
+}
+const nameOf = (d, mid) => { const m = d.munis.find(m => m.id === mid); return m ? m.name : mid; };
+const nm = (d, id) => id == null ? "–" : ((d.parties[String(id)] || {}).n || "Party " + id);
+async function ensureDetail(mid) {
+  const m = M[mid]; const key = m ? `${m.wd}|${m.vd}|${m.sd}` : "";
+  if (DET[mid] && DET[mid]._key === key) return;
+  try { const r = await fetch(`m/${mid}.json?t=${Date.now()}`, { cache: "no-store" }); if (r.ok) { const j = await r.json(); j._key = key; DET[mid] = j; } } catch (e) {}
+  draw();
+}
+
+// ---------- UI ----------
+const starBtn = (k, id) => { const on = k === "w" ? WATCH.w[id] : WATCH.m[id]; return `<button class="star${on ? " on" : ""}" data-star="${k}:${id}" aria-label="Watch">${on ? "★" : "☆"}</button>`; };
+function header() {
+  const p = (D && D.prog) || {}, wpc = p.we ? 100 * p.wd / p.we : 0, vpc = p.ve ? 100 * p.vd / p.ve : 0;
+  $("#hd").innerHTML = `<div class="r1"><h1>LGE 2026 · Ward Flip Tracker<small>UNOFFICIAL · DATA FROM THE IEC RESULTS FEED</small></h1>
+<button class="ib" data-act="sound">${S.sound ? "🔔" : "🔕"}</button><button class="ib" data-act="reload">↻</button></div>
+<div class="pg"><span>Wards declared <b>${fmt(p.wd)}</b> / ${fmt(p.we)}</span><span>Stations counted <b>${pct(vpc)}</b></span></div>
+<div class="bar"><i style="width:${wpc.toFixed(1)}%"></i></div>`;
+  $("#st").innerHTML = `${D ? "IEC data as of " + esc(D.generated.slice(11)) + " · page checked " + lastLoad : "Loading…"} · updates every few minutes${err ? ` · <b style="color:#c92a2a">${esc(err)}</b>` : ""}`;
+}
+function nav() {
+  const early = D ? D.early.length : 0;
+  const tabs = [["flips", "⇄", "Flips"], ["hl", "⚡", "Highlights"], ["live", "◔", "Leading" + (early ? ` (${early})` : "")], ["councils", "▦", "Councils"], ["watch", "★", "Watchlist"], ["more", "☰", "More"]];
+  $("#nav").innerHTML = tabs.map(t => `<button data-tab="${t[0]}" class="${tab === t[0] && detail == null ? "on" : ""}"><b>${t[1]}</b>${t[2]}</button>`).join("");
+}
+function filterBar(withParty) {
+  const parties = [...new Set(D.declared.flatMap(d => [d.n, d.o]).concat(D.early.flatMap(e => [e.lead, e.prev])).filter(x => x != null))].sort((a, c) => pn(a).localeCompare(pn(c)));
+  const provs = [...new Set(D.munis.map(m => m.prov).filter(Boolean))].sort();
+  return `<div class="filters">${withParty ? `<select data-f="party"><option value="">All parties</option>${parties.map(p => `<option value="${p}"${String(F.party) === String(p) ? " selected" : ""}>${esc(pn(p))}</option>`).join("")}</select>` : ""}
+<select data-f="prov"><option value="">All provinces</option>${provs.map(p => `<option${F.prov === p ? " selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
+<div class="filters"><input type="search" data-f="q" placeholder="Search municipality…" value="${esc(F.q)}"></div>`;
+}
+function swingTable(parties) {
+  if (!parties || !parties.length) return `<div class="det sm">Loading…</div>`;
+  return `<div class="det"><table><tr class="sm"><td>Vote share*</td><td>2026</td><td>2021</td><td>Swing</td></tr>${parties.map(p => { const sw = p.pc21 == null ? null : p.pc - p.pc21;
+    return `<tr><td>${chip(p.id)}</td><td>${pct(p.pc)}</td><td>${p.pc21 == null ? "–" : pct(p.pc21)}</td><td class="${sw > 0 ? "up" : sw < 0 ? "dn" : ""}">${sw == null ? "–" : sgn(sw)}</td></tr>`; }).join("")}</table><div class="sm">*ward + PR ballots combined, as the IEC reports per ward</div></div>`;
+}
+function wardDetail(wid, mid) { const dd = DET[mid]; const w = dd && dd.wards.find(w => w.w === wid); if (!dd) ensureDetail(mid); return swingTable(w && w.p); }
+const mname = mid => (M[mid] || {}).name || mid, mprov = mid => (M[mid] || {}).prov || "";
+const passF = x => (F.party === "" || String(x.n) === F.party || String(x.o) === F.party) && (!F.prov || mprov(x.mid) === F.prov) && (!F.q || mname(x.mid).toLowerCase().includes(F.q.toLowerCase()));
+function decRow(d) {
+  const close = d.mg != null && d.mg < S.close;
+  return `<div class="wr${fresh.has(d.w) ? " fresh" : ""}" data-ward="${d.w}" data-mid="${d.mid}"><div class="wm"><b>${esc(mname(d.mid))} · Ward ${d.no}</b>
+<div style="margin:3px 0"><span class="wt t-${d.k}">${{ flip: "flip", hold: "hold", new: "new ward", unk: "no 2021 data" }[d.k]}</span>${close ? ` <span class="wt t-close">close</span>` : ""}</div>
+<div>${(d.k === "flip" || d.k === "hold") && d.o != null ? chip(d.o) + '<span class="ar">→</span>' : ""}${chip(d.n)}</div>
+<div class="sm">${esc(d.c)} · ${esc(mprov(d.mid))} · ${esc(d.t.slice(11))}${d.mg != null ? " · margin " + d.mg.toFixed(1) + " pts" : ""}</div>
+${openWard === d.w ? wardDetail(d.w, d.mid) : ""}</div><div class="pct">${pct(d.pc)}<br>${starBtn("w", d.w)}</div></div>`;
+}
+function viewFlips() {
+  const list = D.declared.filter(passF);
+  const flips = list.filter(d => d.k === "flip"), holds = list.filter(d => d.k === "hold"), news = list.filter(d => d.k === "new");
+  const closes = list.filter(d => d.mg != null && d.mg < S.close);
+  const slipped = holds.filter(d => d.opc != null && d.cpc != null && d.opc - d.cpc >= 15);
+  const rows = { flip: flips, close: closes, slip: slipped, all: list }[flipView] || flips;
+  const g = {}; flips.forEach(d => { (g[d.n] = g[d.n] || [0, 0])[0]++; (g[d.o] = g[d.o] || [0, 0])[1]++; });
+  const gr = Object.entries(g).sort((a, c) => (c[1][0] - c[1][1]) - (a[1][0] - a[1][1]));
+  return `<div class="tiles"><div class="tile hot"><b>${flips.length}</b><span>Flips</span></div><div class="tile"><b>${holds.length}</b><span>Holds</span></div><div class="tile"><b>${news.length}</b><span>New</span></div><div class="tile"><b>${closes.length}</b><span>Close</span></div></div>
+${headlineCard()}
+${filterBar(true)}
+<div class="wc"><h3>Wards held: 2021 → now<span class="sm" style="text-transform:none">${list.length} declared wards</span></h3>${(() => {
+  const c = {}; list.forEach(d => { if (d.k === "flip" || d.k === "hold") { (c[d.o] = c[d.o] || { b: 0, n: 0 }).b++; } (c[d.n] = c[d.n] || { b: 0, n: 0 }).n++; });
+  const rows = Object.entries(c).map(([id, v]) => ({ id, b: v.b, n: v.n, net: v.n - v.b })).sort((a, c) => c.n - a.n || c.net - a.net);
+  const mx = Math.max(1, ...rows.map(r => Math.max(r.b, r.n)));
+  return rows.length ? rows.slice(0, 14).map(r => `<div class="g" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center">${chip(r.id)}<span><span class="sm">${r.b} → </span><b>${r.n}</b> <b class="${r.net > 0 ? "up" : r.net < 0 ? "dn" : ""}" style="display:inline-block;min-width:34px;text-align:right">${r.net > 0 ? "+" : ""}${r.net}</b></span></div>
+<div style="display:flex;gap:3px;margin-top:4px;align-items:center"><span class="sm" style="width:30px">2021</span><div style="flex:1;height:7px;background:#e9edf2;border-radius:3px"><i style="display:block;height:100%;width:${100 * r.b / mx}%;background:#c3ccd7;border-radius:3px"></i></div></div>
+<div style="display:flex;gap:3px;margin-top:2px;align-items:center"><span class="sm" style="width:30px">now</span><div style="flex:1;height:7px;background:#e9edf2;border-radius:3px"><i style="display:block;height:100%;width:${100 * r.n / mx}%;background:${pcol(r.id)};border-radius:3px"></i></div></div></div>`).join("") + `<div class="note" style="padding-top:6px">How many of the wards declared so far each party won in 2021, and how many it holds now. The same wards both times, so small parties starting from almost nothing are shown in proportion.</div>` : `<div class="empty">No wards declared yet</div>`; })()}</div>
+<div class="seg">${[["flip", "Flips"], ["close", `Close calls (<${S.close} pts)`], ["slip", "Held but slipped"], ["all", "All declared"]].map(s => `<button data-fv="${s[0]}" class="${flipView === s[0] ? "on" : ""}">${s[1]}</button>`).join("")}</div>
+<div class="wc"><h3>${rows.length} ward${rows.length === 1 ? "" : "s"} · newest first<span class="sm" style="text-transform:none">tap for swing</span></h3>
+${rows.length ? rows.slice(0, 500).map(decRow).join("") : `<div class="empty">${D.declared.length ? "Nothing matches." : "Waiting for the first declared wards…"}</div>`}</div>
+${flipView === "slip" ? `<div class="note">Held but slipped: same party won, but its vote share fell 15+ points from 2021.</div>` : ""}`;
+}
+function viewLive() {
+  const rows = D.early.filter(e => (F.party === "" || String(e.lead) === F.party || String(e.prev) === F.party) && (!F.prov || mprov(e.mid) === F.prov) && (!F.q || mname(e.mid).toLowerCase().includes(F.q.toLowerCase())));
+  return `${filterBar(true)}<div class="wc"><h3>Leading for a different party · not yet declared</h3>
+${rows.length ? rows.slice(0, 500).map(r => `<div class="wr" data-ward="${r.w}" data-mid="${r.mid}"><div class="wm"><b>${esc(mname(r.mid))} · Ward ${r.no}</b>
+<div style="margin:3px 0"><span class="wt t-lead">leading</span> <span class="sm">${r.cnt} of ${r.tot} stations counted</span></div>
+<div>${chip(r.prev)}<span class="ar">→</span>${chip(r.lead)}</div><div class="sm">${esc(mprov(r.mid))}${r.mg != null ? " · ahead by " + r.mg.toFixed(1) + " pts" : ""}</div>
+${openWard === r.w ? wardDetail(r.w, r.mid) : ""}</div><div class="pct">${pct(r.pc)}<br>${starBtn("w", r.w)}</div></div>`).join("") : `<div class="empty">No undeclared wards currently leaning to a new party.</div>`}</div>
+<div class="note">Provisional: based on the stations counted so far. Wards move to Flips once the IEC declares them.</div>`;
+}
+const statusTag = m => `<span class="wt t-${m.status}">${{ maj: "majority", hung: "hung", count: "counting", wait: "not started" }[m.status]}</span>`;
+function seatBar(m) { const total = m.avail || 1; return `<div class="seatbar">${m.parties.filter(p => p.s).map(p => `<i title="${esc(pn(p.id))}" style="width:${100 * p.s / total}%;background:${pcol(p.id)}"></i>`).join("")}<em></em></div>`; }
+function councilCard(m) {
+  const top = m.parties[0];
+  const s21 = Object.entries(m.seats21 || {}).sort((a, c) => c[1] - a[1]).slice(0, 3).map(([id, s]) => `${esc(pn(id))} ${s}`).join(", ");
+  let line;
+  if (m.status === "maj" && top) line = `${chip(top.id)} majority · ${top.s} of ${m.avail}`;
+  else if (m.status === "hung" && top) line = `${chip(top.id)} largest · ${top.s} of ${m.avail} (needs ${m.need})`;
+  else line = m.lead ? `${chip(m.lead.id)} leads votes ${pct(m.lead.pc)} · ${pct(m.ve ? 100 * m.vd / m.ve : 0)} counted` : "No results yet";
+  return `<div class="wr" data-muni="${m.id}"><div class="wm"><b>${esc(m.name)}</b> ${statusTag(m)}${m.flips ? ` <span class="wt t-flip">${m.flips} flip${m.flips > 1 ? "s" : ""}</span>` : ""}
+<div style="margin-top:3px">${line}</div>${m.parties.some(p => p.s) ? seatBar(m) : ""}
+<div class="sm">${s21 ? "2021: " + s21 : ""}${m.turn ? ` · turnout ≈${pct(m.turn)}${m.turn21 ? " (2021 ≈" + pct(m.turn21) + ")" : ""}` : ""}</div></div>${starBtn("m", m.id)}</div>`;
+}
+function provRow(m) {
+  const lead = m.lead, done = m.ve ? m.vd >= m.ve : false;
+  const line = m.status === "maj" || m.status === "hung" ? `${m.sd} of ${m.se} seats allocated` : `${fmt(m.vd)} of ${fmt(m.ve)} voting districts in`;
+  return `<div class="wr" data-muni="${m.id}" style="align-items:center"><div class="wm"><b>${esc(m.name)}</b>${m.metro ? ' <span class="sm">metro</span>' : ""}<div class="sm" style="color:#9a6b12;font-weight:600">${line}${m.flips ? ` · <span style="color:var(--flip)">${m.flips} flip${m.flips > 1 ? "s" : ""}</span>` : ""}</div></div>
+<div style="display:flex;align-items:center;gap:8px">${lead ? `${chip(lead.id)}<b>${pct(lead.pc)}</b>` : `<span class="sm">no results yet</span>`}${m.status === "hung" ? '<span class="wt t-hung">hung</span>' : m.status === "maj" ? '<span class="wt t-maj">majority</span>' : ""}<span class="sm" style="font-size:18px">›</span></div></div>`;
+}
+function provSummary(prov) {
+  const ms = D.munis.filter(m => m.prov === prov);
+  const votes = {}; ms.forEach(m => m.parties.forEach(p => votes[p.id] = (votes[p.id] || 0) + (p.v || 0)));
+  const tot = Object.values(votes).reduce((a, b) => a + b, 0);
+  const top = Object.entries(votes).sort((a, c) => c[1] - a[1])[0];
+  const wd = ms.reduce((a, m) => a + m.wd, 0), we = ms.reduce((a, m) => a + m.we, 0), vd = ms.reduce((a, m) => a + m.vd, 0), ve = ms.reduce((a, m) => a + m.ve, 0);
+  const flips = ms.reduce((a, m) => a + m.flips, 0), fin = ms.filter(m => m.status === "maj" || m.status === "hung").length, hung = ms.filter(m => m.status === "hung").length;
+  return { ms, top: top ? { id: +top[0], pc: tot ? 100 * top[1] / tot : 0 } : null, wd, we, vd, ve, flips, fin, hung };
+}
+function viewCouncils() {
+  const ms = D.munis;
+  if (provView) {
+    const s = provSummary(provView);
+    const list = s.ms.filter(m => (!councilFilter || m.status === councilFilter) && (!F.q || m.name.toLowerCase().includes(F.q.toLowerCase()))).sort((a, c) => (c.metro - a.metro) || a.name.localeCompare(c.name));
+    return `<button class="back" data-act="provback">‹ All provinces</button>
+<div class="tiles"><div class="tile"><b>${s.wd}</b><span>of ${s.we} wards</span></div><div class="tile hot"><b>${s.flips}</b><span>flips</span></div><div class="tile"><b>${s.fin}</b><span>councils done</span></div><div class="tile"><b>${s.hung}</b><span>hung</span></div></div>
+<div class="seg">${[["", "All"], ["maj", "Majority"], ["hung", "Hung"], ["count", "Counting"]].map(x => `<button data-cf="${x[0]}" class="${councilFilter === x[0] ? "on" : ""}">${x[1]}</button>`).join("")}</div>
+<div class="filters"><input type="search" data-f="q" placeholder="Search in ${esc(provView)}…" value="${esc(F.q)}"></div>
+<div class="wc"><h3>${esc(provView)} · Municipalities<span class="sm" style="text-transform:none">${list.length}${s.top ? ` · ${esc(pn(s.top.id))} ${pct(s.top.pc)} of votes so far` : ""}</span></h3>${list.length ? list.map(provRow).join("") : `<div class="empty">None match</div>`}</div>
+<div class="note">"Voting districts in" counts the voting stations whose results have been captured. Tap a municipality for its party table and every ward.</div>`;
+  }
+  const metros = ms.filter(m => m.metro);
+  const provs = [...new Set(ms.map(m => m.prov).filter(Boolean))].sort();
+  const cnt = k => ms.filter(m => m.status === k).length;
+  return `<div class="tiles"><div class="tile"><b>${cnt("maj")}</b><span>Majority</span></div><div class="tile hot"><b>${cnt("hung")}</b><span>Hung</span></div><div class="tile"><b>${cnt("count")}</b><span>Counting</span></div><div class="tile"><b>${ms.length}</b><span>Councils</span></div></div>
+<div class="wc"><h3>Metros</h3>${metros.map(provRow).join("") || `<div class="empty">Loading…</div>`}</div>
+<div class="wc"><h3>Provinces<span class="sm" style="text-transform:none">tap to browse municipalities</span></h3>${provs.map(p => { const s = provSummary(p);
+  return `<div class="wr" data-prov="${esc(p)}" style="align-items:center"><div class="wm"><b>${esc(p)}</b><div class="sm" style="color:#9a6b12;font-weight:600">${s.wd} of ${s.we} wards declared${s.flips ? ` · <span style="color:var(--flip)">${s.flips} flip${s.flips > 1 ? "s" : ""}</span>` : ""}${s.fin ? ` · ${s.fin} council${s.fin > 1 ? "s" : ""} done` : ""}</div></div>
+<div style="display:flex;align-items:center;gap:8px">${s.top ? `${chip(s.top.id)}<b>${pct(s.top.pc)}</b>` : ""}<span class="sm" style="font-size:18px">›</span></div></div>`; }).join("")}</div>
+<div class="note">Province percentages are each party's share of all votes captured so far in that province (ward and PR ballots together). Dashed line in council views = half the seats.</div>`;
+}
+function wardRowFromDetail(w, mid) {
+  const tag = w.st === "dec" ? `<span class="wt t-${w.ch}">${{ flip: "flip", hold: "hold", new: "new ward", unk: "no 2021 data" }[w.ch]}</span>` : w.st === "count" ? `<span class="wt t-count">counting ${w.cnt}/${w.tot}</span>${w.ch === "flip" ? ' <span class="wt t-lead">leading</span>' : ""}` : `<span class="wt t-wait">not started</span>`;
+  return `<div class="wr${fresh.has(w.w) ? " fresh" : ""}" data-ward="${w.w}" data-mid="${mid}"><div class="wm"><b>${esc(mname(mid))} · Ward ${w.no}</b><div style="margin:3px 0">${tag}</div>
+<div>${w.prev != null ? chip(w.prev) + '<span class="ar">→</span>' : ""}${w.lead != null ? chip(w.lead) : ""}</div>${w.c && w.st === "dec" ? `<div class="sm">${esc(w.c)}${w.mg != null ? " · margin " + w.mg.toFixed(1) + " pts" : ""}</div>` : ""}${openWard === w.w ? swingTable(w.p) : ""}</div><div class="pct">${w.pc != null ? pct(w.pc) : ""}<br>${starBtn("w", w.w)}</div></div>`;
+}
+function viewWatch() {
+  const wm = Object.keys(WATCH.m).map(Number), ww = Object.keys(WATCH.w);
+  const wardRow = wid => { const mid = Math.floor(+wid / 1000); const dd = DET[mid]; const w = dd && dd.wards.find(w => w.w === wid);
+    if (!dd) { ensureDetail(mid); return `<div class="wr"><div class="wm"><b>${esc(mname(mid))} · Ward ${+wid % 1000}</b><div class="sm">Loading…</div></div>${starBtn("w", wid)}</div>`; }
+    if (!w) return `<div class="wr"><div class="wm"><b>Ward ${wid}</b><div class="sm">No results yet</div></div>${starBtn("w", wid)}</div>`;
+    return wardRowFromDetail(w, mid); };
+  return `<div class="wc"><h3>Alert me about</h3><div class="seg" style="padding:10px 12px">${[["all", "All flips + metros + watchlist"], ["watch", "Watchlist only"]].map(s => `<button data-alert="${s[0]}" class="${S.alert === s[0] ? "on" : ""}">${s[1]}</button>`).join("")}</div></div>
+<div class="wc"><h3>Watched councils (${wm.length})</h3>${wm.length ? wm.map(id => M[id] ? councilCard(M[id]) : "").join("") : `<div class="empty">Tap ☆ on any council to watch it.</div>`}</div>
+<div class="wc"><h3>Watched wards (${ww.length})</h3>${ww.length ? ww.map(wardRow).join("") : `<div class="empty">Tap ☆ on any ward, or open a council to pick wards.</div>`}</div>
+<div class="note">Alerts fire when this page is open and a watched ward is declared or a watched council is decided. Settings are saved on this device.</div>`;
+}
+function searchList() {
+  return D.munis.filter(m => searchQ && m.name.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 30)
+    .map(m => `<div class="wr" data-muni="${m.id}"><div class="wm"><b>${esc(m.name)}</b><div class="sm">${esc(m.prov)} · ${m.wd}/${m.we} wards declared${m.flips ? " · " + m.flips + " flips" : ""}</div></div>${starBtn("m", m.id)}</div>`).join("");
+}
+function viewMore() {
+  return `<div class="wc"><h3>Find a council</h3><div class="filters" style="padding:10px 12px"><input type="search" id="srch" placeholder="e.g. Johannesburg, Kannaland…" value="${esc(searchQ)}"></div><div id="slist">${searchList()}</div></div>
+<div class="wc"><h3>Map · flipped wards per council</h3><div id="map">${GEO ? "" : `<button class="wb o" data-act="map" style="margin:12px auto;width:calc(100% - 24px)">Load map</button>`}</div><div class="legend" id="legend"></div></div>
+<button class="wb" data-act="csv">Download declared wards (CSV)</button>
+${"Notification" in window && Notification.permission !== "granted" ? `<button class="wb" data-act="notify">Allow pop-up notifications</button>` : ""}
+<div class="wc"><h3>Settings</h3>
+<div class="set"><span>Sound</span><input type="checkbox" data-s="sound"${S.sound ? " checked" : ""}></div>
+<div class="set"><span>Close call margin (pts)</span><input type="number" data-s="close" min="1" max="20" value="${S.close}" style="max-width:70px;flex:none"></div>
+<div class="set"><span>Forget what I've already seen<div class="sm">Next load alerts about nothing; later changes alert again</div></span><button class="star" data-act="reset" style="font-size:14px;color:#c92a2a">Reset</button></div></div>
+<div class="note">Unofficial personal tracker – not an IEC product. Data comes from the public IEC results feed and is compared with the Nov 2021 result for the same ward number. By-election changes since 2021 are not included, and some ward boundaries were redrawn for 2026. Updated every few minutes; the time at the top is the IEC data time.</div>`;
+}
+function viewMuni(mid) {
+  const m = M[mid], dd = DET[mid];
+  if (!m) return `<button class="back" data-act="back">‹ Back</button><div class="empty">Unknown council</div>`;
+  if (!dd) ensureDetail(mid);
+  const ids = [...new Set([...m.parties.map(p => p.id), ...Object.keys(m.seats21 || {}).map(Number)])];
+  const rows = ids.map(id => { const p = m.parties.find(p => p.id === id) || {}; return { id, s: p.s || 0, pc: p.pc, s21: (m.seats21 || {})[id] || 0 }; }).sort((a, c) => c.s - a.s || (c.pc || 0) - (a.pc || 0) || c.s21 - a.s21);
+  return `<button class="back" data-act="back">‹ Back</button>
+<div class="wc"><h3>${esc(m.name)} ${starBtn("m", mid)}</h3><div class="wr"><div class="wm">${statusTag(m)} <span class="sm">${esc(m.prov)}</span><div class="sm" style="color:#9a6b12;font-weight:600;margin-top:3px">${fmt(m.vd)} of ${fmt(m.ve)} voting districts in · ${m.wd} of ${m.we} wards declared · ${m.sd} of ${m.se} seats allocated</div>${seatBar(m)}
+${m.turn ? `<div class="sm">Turnout ≈${pct(m.turn)}${m.turn21 ? ` vs ≈${pct(m.turn21)} in 2021` : ""}</div>` : ""}</div></div>
+<div class="det" style="margin:0 12px 12px"><table><tr class="sm"><td>Party</td><td>Votes</td><td>Seats</td><td>2021</td></tr>${rows.map(r => `<tr><td>${chip(r.id)}</td><td>${pct(r.pc)}</td><td><b>${r.s}</b></td><td>${r.s21}</td></tr>`).join("")}</table><div class="sm" style="margin-top:4px">${m.need} seats needed for a majority</div></div></div>
+<div class="wc"><h3>Wards</h3>${dd ? dd.wards.map(w => wardRowFromDetail(w, mid)).join("") : `<div class="empty">Loading wards…</div>`}</div>`;
+}
+function draw(bg) {
+  header(); nav();
+  if (!D) return;
+  if (bg && tab === "more" && detail == null) { if (GEO) renderMap(); return; }
+  const bd = $("#bd"), y = bd.scrollTop, a = document.activeElement, af = a && (a.getAttribute("data-f") || a.id), sel = a && a.selectionStart;
+  bd.innerHTML = detail != null ? viewMuni(detail) : { flips: viewFlips, hl: viewHighlights, live: viewLive, councils: viewCouncils, watch: viewWatch, more: viewMore }[tab]();
+  bd.scrollTop = y;
+  if (af === "q" || af === "srch") { const n = af === "srch" ? $("#srch") : $('[data-f="q"]'); if (n) { n.focus(); try { n.setSelectionRange(sel, sel); } catch (e) {} } }
+  if (tab === "more" && detail == null && GEO) renderMap();
+}
+
+// ---------- map (plain SVG) ----------
+async function loadMap() { const box = $("#map"); if (box) box.innerHTML = `<div class="empty">Loading map…</div>`;
+  try { GEO = await (await fetch("map.json")).json(); } catch (e) { if (box) box.innerHTML = `<div class="empty">Map not available yet.</div>`; return; } renderMap(); }
+function renderMap() {
+  const box = $("#map"); if (!box || !GEO) return;
+  let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+  GEO.f.forEach(f => f.r.forEach(r => r.forEach(([x, y]) => { minx = Math.min(minx, x); maxx = Math.max(maxx, x); miny = Math.min(miny, y); maxy = Math.max(maxy, y); })));
+  const k = Math.cos((miny + maxy) / 2 * Math.PI / 180), W = (maxx - minx) * k, H = maxy - miny;
+  const max = Math.max(1, ...D.munis.map(m => m.flips));
+  const col = n => n ? `hsl(18 85% ${Math.round(78 - 42 * Math.min(1, n / max))}%)` : "#e7eef6";
+  const paths = GEO.f.map(f => { const m = M[f.id] || { flips: 0, name: f.n };
+    const d = f.r.map(r => "M" + r.map(([x, y]) => ((x - minx) * k).toFixed(3) + " " + (maxy - y).toFixed(3)).join("L") + "Z").join("");
+    return `<path d="${d}" fill="${col(m.flips)}" class="${mapSel === f.id ? "sel" : ""}" data-mapid="${f.id}"><title>${esc(m.name)}: ${m.flips} flip${m.flips === 1 ? "" : "s"}</title></path>`; }).join("");
+  box.innerHTML = `<svg viewBox="-0.1 -0.1 ${(W + .2).toFixed(2)} ${(H + .2).toFixed(2)}" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
+  const sm = mapSel != null && M[mapSel];
+  $("#legend").innerHTML = `<span><i style="background:#e7eef6"></i>0</span><span><i style="background:${col(Math.ceil(max / 2))}"></i>${Math.ceil(max / 2)}</span><span><i style="background:${col(max)}"></i>${max} flips</span>` + (sm ? ` · <b>${esc(sm.name)}</b>: ${sm.flips} flips — <a href="#" data-muni="${sm.id}">open</a>` : " · tap a council");
+}
+
+
+
+// ---------- headlines ----------
+const NICE = { MKP: "MK Party", PA: "Patriotic Alliance", ACTIONSA: "ActionSA", "VF PLUS": "VF Plus", IND: "Independent" };
+const hn = id => { const n = pn(id); return NICE[n] || n; };
+function headlines() {
+  const H = [], dec = D.declared, flips = dec.filter(d => d.k === "flip"), holds = dec.filter(d => d.k === "hold"), p = D.prog;
+  const g = {}; flips.forEach(d => { (g[d.n] = g[d.n] || [0, 0])[0]++; (g[d.o] = g[d.o] || [0, 0])[1]++; });
+  const sc = Object.entries(g).map(([id, v]) => ({ id: +id, gain: v[0], loss: v[1], net: v[0] - v[1] }));
+  const loser = sc.slice().sort((a, c) => c.loss - a.loss)[0], gainer = sc.slice().sort((a, c) => c.gain - a.gain)[0];
+  if (loser && gainer && loser.id !== gainer.id) { const held = id => dec.filter(d => (d.k === "flip" || d.k === "hold") && d.o === id).length, has = id => dec.filter(d => d.n === id).length;
+    H.push({ t: `${hn(loser.id)} down from ${held(loser.id)} to ${has(loser.id)} of the ${dec.length} wards declared; ${hn(gainer.id)} up from ${held(gainer.id)} to ${has(gainer.id)}`, tab: "flips" }); }
+  const pairs = {}; flips.forEach(d => { const k = `${d.o}>${d.n}`; pairs[k] = (pairs[k] || 0) + 1; });
+  const tp = Object.entries(pairs).sort((a, c) => c[1] - a[1])[0];
+  if (tp && tp[1] >= 3) { const [o, n] = tp[0].split(">"); H.push({ t: `${tp[1]} wards have gone from ${hn(o)} to ${hn(n)} — the biggest switch of the night`, tab: "flips" }); }
+  const fin = D.munis.filter(m => m.status === "maj" || m.status === "hung"), hung = fin.filter(m => m.status === "hung");
+  if (fin.length) H.push({ t: hung.length === fin.length ? `${fin.length} council${fin.length > 1 ? "s" : ""} finished counting — ${fin.length > 1 ? "all hung, coalitions needed" : "hung, coalition needed"}` : `${fin.length} councils finished: ${fin.length - hung.length} with a majority, ${hung.length} hung`, tab: "councils" });
+  const lost = D.munis.filter(m => m.status === "hung" && (() => { const s = Object.entries(m.seats21 || {}).sort((a, c) => c[1] - a[1]); const t = s.reduce((a, [, v]) => a + v, 0); return s[0] && s[0][1] > t / 2; })());
+  if (lost.length) { const by = {}; lost.forEach(m => { const id = Object.entries(m.seats21).sort((a, c) => c[1] - a[1])[0][0]; by[id] = (by[id] || 0) + 1; }); const [id, n] = Object.entries(by).sort((a, c) => c[1] - a[1])[0]; H.push({ t: `${hn(+id)} has lost its majority in ${n} council${n > 1 ? "s" : ""} (${lost.slice(0, 3).map(m => m.name).join(", ")}${lost.length > 3 ? "…" : ""})`, tab: "councils" }); }
+  const strong = flips.filter(d => (d.opc || 0) >= 60).sort((a, c) => c.opc - a.opc)[0];
+  if (strong) H.push({ t: `Upset: ${hn(strong.n)} takes ${mname(strong.mid)} ward ${strong.no}, where ${hn(strong.o)} had ${pct(strong.opc)} in 2021`, w: strong.w, mid: strong.mid });
+  const knife = dec.filter(d => d.mg != null && d.mg >= 0 && d.mg < 1).sort((a, c) => a.mg - c.mg)[0];
+  if (knife) H.push({ t: `Closest result: ${mname(knife.mid)} ward ${knife.no}, ${hn(knife.n)} wins by ${knife.mg.toFixed(1)} points`, w: knife.w, mid: knife.mid });
+  const outs = dec.filter(d => d.k === "flip" && (d.n === 0 || !BIG.has(pn(d.n))));
+  if (outs.length) { const by = {}; outs.forEach(d => by[d.n] = (by[d.n] || 0) + 1); const [id, n] = Object.entries(by).sort((a, c) => c[1] - a[1])[0]; H.push({ t: n > 1 ? `Small party surprise: ${hn(+id)} wins ${n} wards` : `Outsider win: ${hn(+id)} takes ${mname(outs[0].mid)} ward ${outs[0].no}`, tab: "hl" }); }
+  const ep = {}; D.early.forEach(e => { const k = `${e.prev}>${e.lead}`; ep[k] = (ep[k] || 0) + 1; });
+  const te = Object.entries(ep).sort((a, c) => c[1] - a[1]).slice(0, 2);
+  if (te.length && te[0][1] >= 5) H.push({ t: `Still counting: ${te.map(([k, n]) => { const [o, l] = k.split(">"); return `${hn(l)} leads in ${n} ${hn(o)} wards`; }).join("; ")}`, tab: "live" });
+  D.munis.filter(m => m.metro && m.lead).forEach(m => { const s21 = Object.entries(m.seats21 || {}).sort((a, c) => c[1] - a[1])[0]; if (s21 && +s21[0] !== m.lead.id && (m.ve ? m.vd / m.ve : 0) >= .05) H.push({ t: `${m.name}: ${hn(m.lead.id)} ahead on ${pct(m.lead.pc)} with ${pct(100 * m.vd / m.ve)} counted (${hn(+s21[0])} was largest in 2021)`, muni: m.id }); });
+  const col = holds.filter(d => d.opc != null && d.cpc != null && d.opc - d.cpc >= 20);
+  if (col.length >= 3) { const by = {}; col.forEach(d => by[d.n] = (by[d.n] || 0) + 1); const [id, n] = Object.entries(by).sort((a, c) => c[1] - a[1])[0]; H.push({ t: `${hn(+id)} holds ${n} wards but with support down 20+ points`, tab: "hl" }); }
+  if (D.odd && D.odd.length) H.push({ t: `${D.odd.length} ward${D.odd.length > 1 ? "s" : ""} flagged as won before counting finished — treated as not final`, tab: "hl" });
+  return H.slice(0, 8);
+}
+function headlineCard() {
+  const H = headlines(); if (!H.length) return "";
+  return `<div class="wc"><h3>Headlines<span class="sm" style="text-transform:none">${esc(D.generated.slice(11))}</span></h3>${H.map(h => `<div class="wr" ${h.muni ? `data-muni="${h.muni}"` : h.w ? `data-ward="${h.w}" data-mid="${h.mid}" data-go="1"` : h.tab ? `data-tab="${h.tab}"` : ""} style="padding:9px 12px"><div class="wm" style="font-size:14.5px;line-height:1.35">${esc(h.t)}</div><div class="sm">›</div></div>`).join("")}</div>`;
+}
+
+// ---------- highlights ----------
+const BIG = new Set(["ANC", "DA", "EFF", "IFP", "MKP", "PA", "ACTIONSA", "VF PLUS"]);
+let hlOpen = {};
+function hlSection(key, title, items, render, note) {
+  if (!items.length) return "";
+  const open = hlOpen[key], shown = open ? items : items.slice(0, 6);
+  return `<div class="wc"><h3>${title}<span class="sm" style="text-transform:none">${items.length}</span></h3>${shown.map(render).join("")}
+${items.length > 6 ? `<button class="back" data-hl="${key}" style="padding:10px 12px">${open ? "Show fewer" : `Show all ${items.length}`}</button>` : ""}${note ? `<div class="note" style="padding-top:4px">${note}</div>` : ""}</div>`;
+}
+function viewHighlights() {
+  const dec = D.declared, flips = dec.filter(d => d.k === "flip"), holds = dec.filter(d => d.k === "hold");
+  const row = (d, line) => `<div class="wr${fresh.has(d.w) ? " fresh" : ""}" data-ward="${d.w}" data-mid="${d.mid}"><div class="wm"><b>${esc(mname(d.mid))} · Ward ${d.no}</b><div style="margin:3px 0">${line}</div><div class="sm">${esc(mprov(d.mid))}${d.c ? " · " + esc(d.c) : ""}</div>${openWard === d.w ? wardDetail(d.w, d.mid) : ""}</div><div class="pct">${d.pc != null ? pct(d.pc) : ""}</div></div>`;
+  const odd = (D.odd || []).map(o => `<div class="wr" data-ward="${o.w}" data-mid="${o.mid}"><div class="wm"><b>${esc(mname(o.mid))} · Ward ${o.no}</b><div style="margin:3px 0">IEC flags ${chip(o.flag)} as winner, but ${o.lead != null ? chip(o.lead) + " leads" : "no votes are recorded yet"} with ${o.cnt} of ${o.tot} stations in</div><div class="sm">Treated as not final until all stations are counted</div></div></div>`);
+  const strong = flips.filter(d => (d.opc || 0) >= 60).sort((a, c) => c.opc - a.opc);
+  const collapse = holds.filter(d => d.opc != null && d.cpc != null && d.opc - d.cpc >= 20).sort((a, c) => (c.opc - c.cpc) - (a.opc - a.cpc));
+  const knife = dec.filter(d => d.mg != null && d.mg >= 0 && d.mg < 1).sort((a, c) => a.mg - c.mg);
+  const outsiders = dec.filter(d => d.k !== "unk" && (d.n === 0 || !BIG.has(pn(d.n))));
+  const split = dec.filter(d => d.pc != null && d.pc < 35).sort((a, c) => a.pc - c.pc);
+  const pairs = {}; flips.forEach(d => { const k = `${d.o}>${d.n}`; pairs[k] = (pairs[k] || 0) + 1; });
+  const pairList = Object.entries(pairs).sort((a, c) => c[1] - a[1]).slice(0, 8);
+  const epairs = {}; D.early.forEach(e => { const k = `${e.prev}>${e.lead}`; epairs[k] = (epairs[k] || 0) + 1; });
+  const epairList = Object.entries(epairs).sort((a, c) => c[1] - a[1]).slice(0, 8);
+  const sure = D.early.filter(e => e.tot && e.cnt / e.tot >= .75 && (e.mg || 0) >= 10).sort((a, c) => c.mg - a.mg);
+  const cz = D.munis.filter(m => m.status === "maj" || m.status === "hung").map(m => { const s21 = Object.entries(m.seats21 || {}).sort((a, c) => c[1] - a[1]); const tot21 = s21.reduce((a, [, v]) => a + v, 0);
+    const top21 = s21[0] ? { id: +s21[0][0], s: s21[0][1], maj: s21[0][1] > tot21 / 2 } : null; const top = m.parties[0]; let what = null;
+    if (top21 && top && m.status === "maj" && top21.id !== top.id) what = `Control changes: ${chip(top21.id)} → ${chip(top.id)} majority (${top.s}/${m.avail})`;
+    else if (top21 && top21.maj && m.status === "hung") what = `Was a ${chip(top21.id)} majority (${top21.s}/${tot21}) · now hung, ${chip(top.id)} largest with ${top.s}/${m.avail}`;
+    else if (top21 && !top21.maj && m.status === "maj") what = `Was hung · now ${chip(top.id)} majority (${top.s}/${m.avail})`;
+    return what ? { m, what } : null; }).filter(Boolean);
+  const turn = D.munis.filter(m => m.turn && m.turn21 && Math.abs(m.turn - m.turn21) >= 4).sort((a, c) => Math.abs(c.turn - c.turn21) - Math.abs(a.turn - a.turn21));
+  const pairRow = ([k, n]) => { const [o, l] = k.split(">"); return `<div class="g">${chip(o)}<span class="ar">→</span>${chip(l)}<span><b>${n}</b> wards</span></div>`; };
+  return `<div class="note" style="padding-bottom:0">What stands out so far. Tap a ward for its vote-share swing. New since you last looked is highlighted.</div>
+${hlSection("odd", "⚠ Feed quirks: winner flagged but not leading", odd, x => x)}
+${hlSection("cz", "Council control changes", cz, x => `<div class="wr" data-muni="${x.m.id}"><div class="wm"><b>${esc(x.m.name)}</b> ${statusTag(x.m)}<div style="margin-top:3px">${x.what}</div></div></div>`)}
+${hlSection("strong", "Strongholds lost (2021 winner had 60%+)", strong, d => row(d, `${chip(d.o)} ${pct(d.opc)} in 2021 <span class="ar">→</span> ${chip(d.n)} ${pct(d.cpc)}`))}
+${hlSection("collapse", "Held, but support collapsed (−20 pts or more)", collapse, d => row(d, `${chip(d.n)} ${pct(d.opc)} <span class="ar">→</span> ${pct(d.cpc)} <b class="dn">${sgn(d.cpc - d.opc)}</b>`))}
+${hlSection("knife", "Knife-edge results (under 1 point)", knife, d => row(d, `${d.k === "flip" ? chip(d.o) + '<span class="ar">→</span>' : ""}${chip(d.n)} <span class="wt t-close">${d.mg.toFixed(1)} pts</span>`))}
+${hlSection("out", "Outsiders winning wards", outsiders, d => row(d, `${d.o != null ? chip(d.o) + '<span class="ar">→</span>' : ""}${chip(d.n)}`), "Winners outside the eight largest parties, including independents.")}
+${hlSection("split", "Won with under 35% of the vote", split, d => row(d, `${chip(d.n)} · margin ${d.mg != null ? d.mg.toFixed(1) : "–"} pts`), "Three- or four-way splits: the ward could swing easily next time.")}
+${pairList.length ? `<div class="wc"><h3>Where the flips are going (declared)</h3>${pairList.map(pairRow).join("")}</div>` : ""}
+${epairList.length ? `<div class="wc"><h3>Where the leads are going (still counting)</h3>${epairList.map(pairRow).join("")}<div class="note" style="padding-top:4px">Provisional, from wards leaning to a different party than in 2021.</div></div>` : ""}
+${hlSection("sure", "Near-certain flips (75%+ counted, 10+ pt lead)", sure, e => `<div class="wr" data-ward="${e.w}" data-mid="${e.mid}"><div class="wm"><b>${esc(mname(e.mid))} · Ward ${e.no}</b><div style="margin:3px 0">${chip(e.prev)}<span class="ar">→</span>${chip(e.lead)} <span class="sm">${e.cnt}/${e.tot} stations · ahead by ${e.mg.toFixed(1)}</span></div>${openWard === e.w ? wardDetail(e.w, e.mid) : ""}</div><div class="pct">${pct(e.pc)}</div></div>`)}
+${hlSection("turn", "Turnout shifts (4+ pts vs 2021)", turn, m => `<div class="wr" data-muni="${m.id}"><div class="wm"><b>${esc(m.name)}</b><div style="margin-top:3px">≈${pct(m.turn)} now vs ≈${pct(m.turn21)} in 2021 <b class="${m.turn > m.turn21 ? "up" : "dn"}">${sgn(m.turn - m.turn21)}</b></div></div></div>`, "Approximate; only for councils where every station is in.")}
+${!odd.length && !strong.length && !collapse.length && !knife.length && !cz.length ? `<div class="empty">Nothing unusual yet.</div>` : ""}`;
+}
+
+// ---------- CSV ----------
+function csv() {
+  const head = ["declared_at", "province", "municipality", "ward", "ward_id", "result", "party_2021", "winner_share_2021", "party_2026", "winner", "ward_ballot_share_2026", "margin_pts", "winner_swing_vs_2021"];
+  const lines = [head.join(",")].concat(D.declared.map(d => { const sw = d.opc != null && d.cpc != null && d.k === "hold" ? (d.cpc - d.opc).toFixed(1) : "";
+    return [d.t, mprov(d.mid), mname(d.mid), d.no, d.w, d.k, d.o != null ? pn(d.o) : "", d.opc ?? "", pn(d.n), d.c, d.pc ?? "", d.mg != null ? d.mg.toFixed(1) : "", sw].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","); }));
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" })); a.download = `lge2026_declared_wards.csv`; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+}
+
+// ---------- events ----------
+document.addEventListener("click", e => {
+  if (actx && actx.state === "suspended") actx.resume();
+  const mp = e.target.closest("[data-mapid]"); if (mp) { mapSel = +mp.dataset.mapid; renderMap(); return; }
+  const t = e.target.closest("[data-star],[data-tab],[data-act],[data-fv],[data-cf],[data-alert],[data-muni],[data-ward],[data-hl],[data-prov]"); if (!t) return;
+  const d = t.dataset;
+  if (d.star) { e.stopPropagation(); const [k, id] = d.star.split(":"); if (WATCH[k][id]) delete WATCH[k][id]; else WATCH[k][id] = 1; LS.set("watch", WATCH);
+    document.querySelectorAll(`[data-star="${d.star}"]`).forEach(b => { const on = !!WATCH[k][id]; b.className = "star" + (on ? " on" : ""); b.textContent = on ? "★" : "☆"; }); return; }
+  if (d.hl) { hlOpen[d.hl] = !hlOpen[d.hl]; draw(); return; }
+  if (d.tab) { tab = d.tab; detail = null; openWard = null; draw(); $("#bd").scrollTop = 0; return; }
+  if (d.fv) { flipView = d.fv; draw(); return; }
+  if (d.cf != null) { councilFilter = d.cf; draw(); return; }
+  if (d.prov != null) { provView = d.prov; councilFilter = ""; F.q = ""; draw(); $("#bd").scrollTop = 0; return; }
+  if (d.act === "provback") { provView = null; councilFilter = ""; F.q = ""; draw(); return; }
+  if (d.alert) { S.alert = d.alert; LS.set("settings", S); draw(); return; }
+  if (d.muni) { e.preventDefault(); detail = +d.muni; openWard = null; draw(); $("#bd").scrollTop = 0; ensureDetail(+d.muni); return; }
+  if (d.ward) { if (d.go) { detail = +d.mid; openWard = d.ward; draw(); ensureDetail(+d.mid); const el = document.querySelector(`[data-ward="${d.ward}"]`); if (el && el.scrollIntoView) el.scrollIntoView({ block: "center" }); return; } openWard = openWard === d.ward ? null : d.ward; draw(); return; }
+  if (d.act === "sound") { S.sound = !S.sound; LS.set("settings", S); beep(1); draw(); }
+  else if (d.act === "reload") { load(); }
+  else if (d.act === "back") { detail = null; draw(); }
+  else if (d.act === "csv") csv();
+  else if (d.act === "map") loadMap();
+  else if (d.act === "notify") Notification.requestPermission().then(() => draw());
+  else if (d.act === "reset") { seen = null; seenStatus = {}; LS.set("seen", null); LS.set("seenStatus", {}); load(); }
+});
+document.addEventListener("input", e => { const t = e.target;
+  if (t.dataset.f) { F[t.dataset.f] = t.value; draw(); }
+  else if (t.id === "srch") { searchQ = t.value; const l = $("#slist"); if (l) l.innerHTML = searchList(); }
+  else if (t.dataset.s) { const k = t.dataset.s; S[k] = t.type === "checkbox" ? t.checked : Math.max(1, Math.min(20, +t.value || 5)); LS.set("settings", S); if (t.type === "checkbox") draw(); } });
+if (["#councils", "#live", "#watch", "#hl"].includes(location.hash)) tab = location.hash.slice(1);
+draw(); wake(); load(); setInterval(load, 60000);
+})();
+</script>
+</body></html>
